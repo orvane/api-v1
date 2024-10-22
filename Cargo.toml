@@ -1,0 +1,14 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.7"
+axum-extra = "0.9.4"
+hyper = "1.5.0"
+serde = { version = "1.0.212", features = ["derive"] }
+tokio = "1.41.0"
+tonic = "0.12.3"
+tower = "0.5.1"
+tower-http = "0.6.1"
