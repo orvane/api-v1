@@ -6,9 +6,11 @@ edition = "2021"
 [dependencies]
 axum = "0.7.7"
 axum-extra = "0.9.4"
-hyper = "1.5.0"
+hyper = {version = "1.5.0", features = ["full"]}
 serde = { version = "1.0.212", features = ["derive"] }
-tokio = "1.41.0"
+serde_json = "1.0.132"
+tokio = {version = "1.41.0", features = ["full"]}
 tonic = "0.12.3"
 tower = "0.5.1"
 tower-http = "0.6.1"
+uuid = "1.11.0"
