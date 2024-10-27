@@ -7,6 +7,7 @@ use axum::{
 use derive_more::Display;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
+use surrealdb::{engine::remote::ws::Client, Surreal};
 use validator::Validate;
 
 use crate::AppState;
@@ -32,6 +33,7 @@ impl User {
 #[derive(Debug, Display)]
 pub enum SignupError {
     ValidationError,
+    EmailUnavailableError,
     DatabaseError(surrealdb::Error),
 }
 
@@ -40,6 +42,7 @@ impl IntoResponse for SignupError {
         let status_code = match &self {
             SignupError::ValidationError => StatusCode::BAD_REQUEST,
             SignupError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            SignupError::EmailUnavailableError => StatusCode::BAD_REQUEST,
         };
 
         let body = Json(serde_json::json!({"error": self.to_string()}));
@@ -47,21 +50,17 @@ impl IntoResponse for SignupError {
     }
 }
 
-// async fn check_if_user_exists(email: &str, db: &Surreal<Client>) -> Result<bool, surrealdb::Error> {
-//     let data: Result<Option<User>, surrealdb::Error> = db.select(("user", email)).await;
+async fn check_if_user_exists(
+    email: &String,
+    db: &Surreal<Client>,
+) -> Result<bool, surrealdb::Error> {
+    let user: Option<User> = db.select(("user", email)).await?;
 
-//     match data {
-//         Ok(Some(_user)) => {
-//             println!("SOMETHING");
-//             Ok(true)
-//         }
-//         Ok(None) => {
-//             println!("NOTHING");
-//             Ok(false)
-//         }
-//         Err(e) => Err(e),
-//     }
-// }
+    match user {
+        Some(_) => Ok(false),
+        None => Ok(true),
+    }
+}
 
 #[axum::debug_handler]
 pub async fn signup(
@@ -77,16 +76,24 @@ pub async fn signup(
         return Err(SignupError::ValidationError);
     }
 
-    let new_user = User::new(String::from(email.clone()));
+    let email_available = check_if_user_exists(&email, &app_state.db).await;
 
-    // TODO: Check if the user exists manually as surrealdb only returns string like errors with
-    // no code
-    let create: Option<User> = app_state
-        .db
-        .create(("user", &payload.email))
-        .content(new_user.clone())
-        .await
-        .map_err(SignupError::DatabaseError)?;
+    match email_available {
+        Ok(false) => return Err(SignupError::EmailUnavailableError),
+        Ok(true) => {
+            let new_user = User::new(String::from(email.clone()));
 
-    Ok((StatusCode::CREATED, Json(new_user)))
+            // TODO: Check if the user exists manually as surrealdb only returns string like errors with
+            // no code
+            let create: Option<User> = app_state
+                .db
+                .create(("user", &payload.email))
+                .content(new_user.clone())
+                .await
+                .map_err(SignupError::DatabaseError)?;
+
+            Ok((StatusCode::CREATED, Json(new_user)))
+        }
+        Err(e) => Err(SignupError::DatabaseError(e)),
+    }
 }
