@@ -116,6 +116,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "derive_more",
+ "futures-util",
  "hyper",
  "resend-rs",
  "serde",
