@@ -83,9 +83,7 @@ pub async fn signup(
         Ok(true) => {
             let new_user = User::new(String::from(email.clone()));
 
-            // TODO: Check if the user exists manually as surrealdb only returns string like errors with
-            // no code
-            let create: Option<User> = app_state
+            let _: Option<User> = app_state
                 .db
                 .create(("user", &payload.email))
                 .content(new_user.clone())
