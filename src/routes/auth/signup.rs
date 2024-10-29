@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     extract::State,
     response::{IntoResponse, Response},
@@ -10,13 +8,9 @@ use derive_more::Display;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
-use tower::Layer;
 use validator::Validate;
 
-use crate::{
-    services::email_service::{self, EmailLayer},
-    AppState,
-};
+use crate::{services::email_service::EmailLayer, AppState};
 
 #[derive(Debug, Deserialize, Validate)]
 struct EmailInput {
@@ -92,19 +86,19 @@ pub async fn signup(
         Ok(true) => {
             let new_user = User::new(String::from(email.clone()));
 
-            if let Err(e) = email_layer
-                .send_email_verification(email.clone(), String::from("123456"))
-                .await
-            {
-                return Err(SignupError::EmailError(e));
-            }
-
             let _: Option<User> = app_state
                 .db
                 .create(("user", &payload.email))
                 .content(new_user.clone())
                 .await
                 .map_err(SignupError::DatabaseError)?;
+
+            if let Err(e) = email_layer
+                .send_email_verification(email.clone(), String::from("123456"))
+                .await
+            {
+                return Err(SignupError::EmailError(e));
+            }
 
             Ok((StatusCode::CREATED, Json(new_user)))
         }
