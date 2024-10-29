@@ -1,16 +1,22 @@
+use std::sync::Arc;
+
 use axum::{
     extract::State,
     response::{IntoResponse, Response},
-    Json,
+    Extension, Json,
 };
 
 use derive_more::Display;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
+use tower::Layer;
 use validator::Validate;
 
-use crate::AppState;
+use crate::{
+    services::email_service::{self, EmailLayer},
+    AppState,
+};
 
 #[derive(Debug, Deserialize, Validate)]
 struct EmailInput {
@@ -35,6 +41,7 @@ pub enum SignupError {
     ValidationError,
     EmailUnavailableError,
     DatabaseError(surrealdb::Error),
+    EmailError(String),
 }
 
 impl IntoResponse for SignupError {
@@ -43,6 +50,7 @@ impl IntoResponse for SignupError {
             SignupError::ValidationError => StatusCode::BAD_REQUEST,
             SignupError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             SignupError::EmailUnavailableError => StatusCode::BAD_REQUEST,
+            SignupError::EmailError(_) => StatusCode::BAD_REQUEST,
         };
 
         let body = Json(serde_json::json!({"error": self.to_string()}));
@@ -65,6 +73,7 @@ async fn check_if_user_exists(
 #[axum::debug_handler]
 pub async fn signup(
     State(app_state): State<AppState>,
+    Extension(email_layer): Extension<EmailLayer>,
     Json(payload): Json<User>,
 ) -> Result<(StatusCode, Json<User>), SignupError> {
     let email = payload.email.clone();
@@ -82,6 +91,13 @@ pub async fn signup(
         Ok(false) => return Err(SignupError::EmailUnavailableError),
         Ok(true) => {
             let new_user = User::new(String::from(email.clone()));
+
+            if let Err(e) = email_layer
+                .send_email_verification(email.clone(), String::from("123456"))
+                .await
+            {
+                return Err(SignupError::EmailError(e));
+            }
 
             let _: Option<User> = app_state
                 .db
