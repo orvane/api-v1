@@ -10,7 +10,9 @@ use axum::{
 
 use derive_more::Display;
 use hyper::StatusCode;
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 use validator::Validate;
 
@@ -23,16 +25,34 @@ struct EmailInput {
 }
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
+pub struct EmailVerification {
+    code: String,
+}
+
+impl EmailVerification {
+    pub fn new(code: String) -> EmailVerification {
+        EmailVerification { code }
+    }
+}
+
+#[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct User {
     #[validate(email)]
     pub email: String,
     //TODO: Add custom valdation for the password
     pub password: String,
+
+    #[serde(default)]
+    pub email_verified: bool,
 }
 
 impl User {
     pub fn new(email: String, password: String) -> User {
-        User { email, password }
+        User {
+            email,
+            password,
+            email_verified: false,
+        }
     }
 }
 
@@ -96,6 +116,32 @@ pub async fn verify_password(
     Ok(true)
 }
 
+pub fn generate_random_code(length: usize) -> String {
+    let mut rng = thread_rng();
+
+    let code: String = (0..length)
+        .map(|_| rng.gen_range(0..10).to_string())
+        .collect();
+
+    code
+}
+
+pub fn string_hash(input: String) -> String {
+    let mut hasher = Sha256::new();
+
+    hasher.update(input.as_bytes());
+
+    let result = hasher.finalize();
+
+    result.iter().map(|byte| format!("{:02x}", byte)).collect()
+}
+
+pub fn verify_string_hash(input: String, hash: String) -> bool {
+    let new_hash = string_hash(input);
+
+    hash == new_hash
+}
+
 #[axum::debug_handler]
 pub async fn signup(
     State(app_state): State<AppState>,
@@ -129,10 +175,24 @@ pub async fn signup(
                 .await
                 .map_err(SignupError::DatabaseError)?;
 
+            //TODO: create an email_verification in a database (new table)
+            let verification_code = generate_random_code(6);
+
+            let verification_code_hash = string_hash(verification_code.clone());
+
+            let _: Option<EmailVerification> = app_state
+                .db
+                .create(("email_verification", &payload.email))
+                .content(EmailVerification {
+                    code: verification_code_hash,
+                })
+                .await
+                .map_err(SignupError::DatabaseError)?;
+
+            // TODO: add a service that would have a function that generates a code like below,
+            // might combine it with the hashing service and name it utils or something
             if let Err(e) = email_layer
-                // TODO: add a service that would have a function that generates a code like below,
-                // might combine it with the hashing service and name it utils or something
-                .send_email_verification(email.clone(), String::from("123456"))
+                .send_email_verification(email.clone(), verification_code)
                 .await
             {
                 return Err(SignupError::EmailError(e));
