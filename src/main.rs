@@ -1,35 +1,31 @@
+mod errors;
 mod routes;
 mod services;
+mod utils;
 
 use axum::{routing::post, Extension, Router};
 use dotenv::dotenv;
 use routes::auth::signup::{self};
-use services::email_service::EmailLayer;
+use services::{database_service::DatabaseLayer, email_service::EmailLayer};
 use std::env;
-use surrealdb::{
-    engine::remote::ws::{Client, Ws},
-    opt::auth::Root,
-    Surreal,
-};
 
 #[derive(Clone)]
-struct AppState {
-    db: Surreal<Client>,
-}
+struct AppState {}
 
 #[tokio::main]
 async fn main() -> surrealdb::Result<()> {
     dotenv().ok();
+    let shared_state = AppState {};
 
-    let db = Surreal::new::<Ws>("127.0.0.1:8000").await?;
-    db.signin(Root {
-        username: "root",
-        password: "root",
-    })
+    // TODO: Put values from below as the env sercrets (for now)
+    let database_layer = DatabaseLayer::new(
+        String::from("root"),
+        String::from("root"),
+        String::from("127.0.0.1:8000"),
+        String::from("orvane"),
+        String::from("test"),
+    )
     .await?;
-    db.use_ns("orvane").use_db("test").await?;
-
-    let shared_state = AppState { db };
 
     let email_layer = EmailLayer::new(
         env::var("RESEND_API_KEY").unwrap_or_else(|_| {
@@ -41,6 +37,7 @@ async fn main() -> surrealdb::Result<()> {
 
     let app = Router::new()
         .route("/api/v1/auth/signup", post(signup::signup))
+        .layer(Extension(database_layer))
         .layer(Extension(email_layer))
         .with_state(shared_state);
 
