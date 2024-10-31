@@ -75,5 +75,3 @@ where
         })
     }
 }
-
-impl<S> EmailService<S> {}
