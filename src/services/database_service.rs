@@ -80,8 +80,6 @@ impl<'a> UserQuery<'a> {
         }
     }
 
-    pub async fn get_all(&self) -> Result<Vec<User>, surrealdb::Error> {
-        self.db.select("user").await
     pub async fn verify_user(&self, user_id: String) -> Result<(), surrealdb::Error> {
         let query = r#"
             UPDATE user
