@@ -12,6 +12,8 @@ use surrealdb::{
 use tower::{Layer, Service};
 use validator::Validate;
 
+use crate::errors::auth::email_verification;
+
 #[derive(Clone)]
 pub struct DatabaseQuery<'a> {
     #[allow(dead_code)]
@@ -67,6 +69,8 @@ impl<'a> UserQuery<'a> {
         Ok(user)
     }
 
+    // TODO: Instead of using string referance use normal string and clone the input in the
+    // implemenation
     pub async fn check_if_exists(&self, email: &String) -> Result<bool, surrealdb::Error> {
         let user: Option<User> = self.db.select(("user", email)).await?;
 
@@ -78,6 +82,18 @@ impl<'a> UserQuery<'a> {
 
     pub async fn get_all(&self) -> Result<Vec<User>, surrealdb::Error> {
         self.db.select("user").await
+    pub async fn verify_user(&self, user_id: String) -> Result<(), surrealdb::Error> {
+        let query = r#"
+            UPDATE user
+            SET email_verified = true
+            WHERE id = $user_id
+        "#;
+
+        let result: surrealdb::Response = self.db.query(query).bind(("user_id", user_id)).await?;
+
+        // TODO: Return an error if it affects no rows
+
+        Ok(())
     }
 }
 
@@ -157,6 +173,23 @@ impl<'a> EmailVerificationQuery<'a> {
         let email_verification: Vec<EmailVerification> = result.take(0)?;
 
         Ok(email_verification.into_iter().next().unwrap())
+    }
+
+    pub async fn remove(&self, email_verification_id: String) -> Result<(), surrealdb::Error> {
+        let query = r#"
+            DELETE FROM email_verification
+            WHERE id = $email_verification_id
+        "#;
+
+        let result: surrealdb::Response = self
+            .db
+            .query(query)
+            .bind(("email_verification_id", email_verification_id))
+            .await?;
+
+        // TODO: Return an error if it affects no rows
+
+        Ok(())
     }
 }
 
