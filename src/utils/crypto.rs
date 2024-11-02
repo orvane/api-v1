@@ -1,6 +1,7 @@
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 pub async fn hash_password(password: String) -> Result<String, argon2::password_hash::Error> {
     let argon2 = Argon2::default();
@@ -39,4 +40,10 @@ pub fn verify_string_hash(input: String, hash: String) -> bool {
     let new_hash = string_hash(input);
 
     hash == new_hash
+}
+
+pub fn generate_uuid() -> String {
+    let new_uuid = Uuid::new_v4().simple().to_string();
+
+    new_uuid
 }
