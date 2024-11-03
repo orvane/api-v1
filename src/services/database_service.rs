@@ -12,7 +12,7 @@ use surrealdb::{
 use tower::{Layer, Service};
 use validator::Validate;
 
-use crate::errors::auth::email_verification;
+use crate::utils::crypto::generate_uuid;
 
 #[derive(Clone)]
 pub struct DatabaseQuery<'a> {
@@ -58,26 +58,31 @@ impl<'a> UserQuery<'a> {
         email: String,
         password_hash: String,
     ) -> Result<Option<User>, surrealdb::Error> {
+        let id = generate_uuid();
         let new_user = User::new(String::from(email.clone()), password_hash);
 
-        let user: Option<User> = self
-            .db
-            .create(("user", email.clone()))
-            .content(new_user)
-            .await?;
+        let user: Option<User> = self.db.create(("user", id)).content(new_user).await?;
 
         Ok(user)
     }
 
     // TODO: Instead of using string referance use normal string and clone the input in the
     // implemenation
-    pub async fn check_if_exists(&self, email: &String) -> Result<bool, surrealdb::Error> {
-        let user: Option<User> = self.db.select(("user", email)).await?;
+    pub async fn check_if_exists(&self, email: String) -> Result<bool, surrealdb::Error> {
+        let query = r#"
+            SELECT user
+            WHERE email = $user_email
+        "#;
 
-        match user {
-            Some(_) => Ok(false),
-            None => Ok(true),
-        }
+        let mut user: surrealdb::Response = self
+            .db
+            .query(query)
+            .bind(("user_email", email.clone()))
+            .await?;
+
+        let users: Vec<User> = user.take(0)?;
+
+        Ok(!users.is_empty())
     }
 
     pub async fn verify_user(&self, user_id: String) -> Result<(), surrealdb::Error> {
@@ -87,9 +92,18 @@ impl<'a> UserQuery<'a> {
             WHERE id = $user_id
         "#;
 
-        let result: surrealdb::Response = self.db.query(query).bind(("user_id", user_id)).await?;
+        let mut result: surrealdb::Response =
+            self.db.query(query).bind(("user_id", user_id)).await?;
 
-        // TODO: Return an error if it affects no rows
+        let affected: Vec<User> = result.take(0)?;
+
+        if affected.is_empty() {
+            return Err(surrealdb::Error::Api(
+                surrealdb::error::Api::InvalidRequest(String::from(
+                    "User either doesn't exist or is already verified",
+                )),
+            ));
+        }
 
         Ok(())
     }
@@ -179,13 +193,21 @@ impl<'a> EmailVerificationQuery<'a> {
             WHERE id = $email_verification_id
         "#;
 
-        let result: surrealdb::Response = self
+        let mut result: surrealdb::Response = self
             .db
             .query(query)
             .bind(("email_verification_id", email_verification_id))
             .await?;
 
-        // TODO: Return an error if it affects no rows
+        let affected: Vec<EmailVerification> = result.take(0)?;
+
+        if affected.is_empty() {
+            return Err(surrealdb::Error::Api(
+                surrealdb::error::Api::InvalidRequest(String::from(
+                    "Email verification either doesn't exist or is already verified",
+                )),
+            ));
+        }
 
         Ok(())
     }
