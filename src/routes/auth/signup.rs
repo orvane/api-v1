@@ -50,7 +50,11 @@ pub async fn signup(
         .await
         .map_err(|_| SignupError::HashingError)?;
 
-    let email_available = database_layer.query().user.check_if_exists(&email).await;
+    let email_available = database_layer
+        .query()
+        .user
+        .check_if_exists(email.clone())
+        .await;
 
     match email_available {
         Ok(false) => return Err(SignupError::EmailUnavailableError),
