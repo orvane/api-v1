@@ -16,6 +16,8 @@ pub struct CodeStruct {
     #[validate(custom(function = "validate_email_verification_code_length"))]
     #[validate(custom(function = "validate_email_verification_code_format"))]
     code: String,
+    user_id: String,
+    email_verification_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,13 +31,11 @@ pub async fn email_verification(
     Extension(database_layer): Extension<DatabaseLayer>,
     Json(payload): Json<CodeStruct>,
 ) -> Result<(StatusCode, Json<RouteOutput>), EmailVerificationError> {
-    // DUMMY DATA
-    let user_id = "some_id";
-    let email_verification_id = "some_id";
-
     // 1. Validate code input
     let code_instace = CodeStruct {
         code: payload.code.clone(),
+        user_id: payload.user_id.clone(),
+        email_verification_id: payload.email_verification_id.clone(),
     };
 
     match code_instace.validate() {
@@ -50,7 +50,7 @@ pub async fn email_verification(
     let modify_user_verified_status = database_layer
         .query()
         .user
-        .verify_user(String::from(user_id))
+        .verify_user(String::from(payload.user_id))
         .await;
 
     match modify_user_verified_status {
@@ -63,7 +63,7 @@ pub async fn email_verification(
     let remove_email_verification = database_layer
         .query()
         .email_verification
-        .remove(String::from(email_verification_id))
+        .remove(String::from(payload.email_verification_id))
         .await;
 
     match remove_email_verification {
