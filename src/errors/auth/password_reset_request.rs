@@ -9,22 +9,22 @@ use serde_json::{json, Value};
 // TODO: A LOT OF THIS CODE IS A COPY OF email_verification.rs
 // FIND A WAY TO CREATE BOILERPLATE LIKE THIS EASIER WITHOUT COPYING EXECESSIVELY
 #[derive(Debug, Display)]
-pub enum PasswordResetError {
+pub enum PasswordResetRequestError {
     ValidationError(validator::ValidationErrors),
     DatabaseError(surrealdb::Error),
 }
 
-impl PasswordResetError {
+impl PasswordResetRequestError {
     fn name(&self) -> &str {
         match self {
-            PasswordResetError::ValidationError(_) => "Validation Error",
-            PasswordResetError::DatabaseError(_) => "Database Error",
+            PasswordResetRequestError::ValidationError(_) => "Validation Error",
+            PasswordResetRequestError::DatabaseError(_) => "Database Error",
         }
     }
 
     fn message(&self) -> Value {
         match self {
-            PasswordResetError::ValidationError(errors) => {
+            PasswordResetRequestError::ValidationError(errors) => {
                 let mut field_errors = serde_json::Map::new();
 
                 for (field, error_vec) in errors.field_errors() {
@@ -40,18 +40,18 @@ impl PasswordResetError {
 
                 json!(field_errors)
             }
-            PasswordResetError::DatabaseError(_) => {
+            PasswordResetRequestError::DatabaseError(_) => {
                 json!("An error occured while accessing database")
             }
         }
     }
 }
 
-impl IntoResponse for PasswordResetError {
+impl IntoResponse for PasswordResetRequestError {
     fn into_response(self) -> Response {
         let status_code = match &self {
-            PasswordResetError::ValidationError(_) => StatusCode::BAD_REQUEST,
-            PasswordResetError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            PasswordResetRequestError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            PasswordResetRequestError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(json!({
