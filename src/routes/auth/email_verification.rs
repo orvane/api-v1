@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize, Validate)]
-pub struct CodeStruct {
+pub struct RoutePayload {
     #[validate(custom(function = "validate_email_verification_code_length"))]
     #[validate(custom(function = "validate_email_verification_code_format"))]
     code: String,
@@ -29,16 +29,16 @@ pub struct RouteOutput {
 #[axum::debug_handler]
 pub async fn email_verification(
     Extension(database_layer): Extension<DatabaseLayer>,
-    Json(payload): Json<CodeStruct>,
+    Json(payload): Json<RoutePayload>,
 ) -> Result<(StatusCode, Json<RouteOutput>), EmailVerificationError> {
-    // 1. Validate code input
-    let code_instace = CodeStruct {
+    // 1. Validate payload input
+    let payload_instace = RoutePayload {
         code: payload.code.clone(),
         user_id: payload.user_id.clone(),
         email_verification_id: payload.email_verification_id.clone(),
     };
 
-    match code_instace.validate() {
+    match payload_instace.validate() {
         Ok(_) => println!("Validation passed successfully!"),
         Err(e) => return Err(EmailVerificationError::ValidationError(e)),
     }
