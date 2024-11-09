@@ -1,4 +1,5 @@
 pub mod email_verification;
+pub mod password_reset_request;
 pub mod user;
 
 use std::task::{Context, Poll};
@@ -18,6 +19,7 @@ pub struct DatabaseQuery<'a> {
     db: &'a Surreal<Client>,
     pub user: user::UserQuery<'a>,
     pub email_verification: email_verification::EmailVerificationQuery<'a>,
+    pub password_reset_request: password_reset_request::PasswordResetRequestQuery<'a>,
 }
 
 #[allow(dead_code)]
@@ -66,6 +68,9 @@ impl DatabaseLayer {
             db: &self.db,
             user: user::UserQuery::new(&self.db),
             email_verification: email_verification::EmailVerificationQuery::new(&self.db),
+            password_reset_request: password_reset_request::PasswordResetRequestQuery::new(
+                &self.db,
+            ),
         }
     }
 }
