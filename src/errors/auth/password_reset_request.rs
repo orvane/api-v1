@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 pub enum PasswordResetRequestError {
     ValidationError(validator::ValidationErrors),
     DatabaseError(surrealdb::Error),
+    EmailServiceError(resend_rs::Error),
 }
 
 impl PasswordResetRequestError {
@@ -19,6 +20,7 @@ impl PasswordResetRequestError {
         match self {
             PasswordResetRequestError::ValidationError(_) => "Validation Error",
             PasswordResetRequestError::DatabaseError(_) => "Database Error",
+            PasswordResetRequestError::EmailServiceError(_) => "Email Service Error",
         }
     }
 
@@ -43,6 +45,9 @@ impl PasswordResetRequestError {
             PasswordResetRequestError::DatabaseError(_) => {
                 json!("An error occured while accessing database")
             }
+            PasswordResetRequestError::EmailServiceError(_) => {
+                json!("An error has occured while sending an email")
+            }
         }
     }
 }
@@ -52,6 +57,7 @@ impl IntoResponse for PasswordResetRequestError {
         let status_code = match &self {
             PasswordResetRequestError::ValidationError(_) => StatusCode::BAD_REQUEST,
             PasswordResetRequestError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            PasswordResetRequestError::EmailServiceError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(json!({
