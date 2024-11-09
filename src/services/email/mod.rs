@@ -19,7 +19,7 @@ impl EmailLayer {
         &self,
         to: String,
         activation_code: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), resend_rs::Error> {
         let resend = Resend::new(&self.api_key);
 
         let from = format!("Orvane <noreply@{}>", &self.domain);
@@ -29,7 +29,31 @@ impl EmailLayer {
         let email = CreateEmailBaseOptions::new(from, to, subject)
             .with_html(format!("<strong>{}</strong>", activation_code).as_str());
 
-        let _email = resend.emails.send(email).await.map_err(|e| e.to_string());
+        let _email = resend.emails.send(email).await?;
+
+        Ok(())
+    }
+
+    pub async fn send_password_reset(
+        &self,
+        to: String,
+        password_reset_request_id: String,
+    ) -> Result<(), resend_rs::Error> {
+        let resend = Resend::new(&self.api_key);
+
+        let from = format!("Orvane <noreply@{}>", &self.domain);
+        let to = [to];
+        let subject = "Orvane - Password Reset";
+
+        let password_reset_url = format!(
+            "https://{}/auth/password-reset/{}",
+            &self.domain, password_reset_request_id
+        );
+
+        let email = CreateEmailBaseOptions::new(from, to, subject)
+            .with_html(format!("<a href=\"{}\">Reset</strong>", password_reset_url).as_str());
+
+        let _email = resend.emails.send(email).await?;
 
         Ok(())
     }
