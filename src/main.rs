@@ -5,7 +5,10 @@ mod utils;
 
 use axum::{routing::post, Extension, Router};
 use dotenv::dotenv;
-use routes::auth::{email_verification::email_verification, signup::signup};
+use routes::auth::{
+    email_verification::email_verification, password_reset_request::password_reset_request,
+    signup::signup,
+};
 use services::{database::DatabaseLayer, email::EmailLayer};
 use std::env;
 
@@ -39,6 +42,10 @@ async fn main() -> surrealdb::Result<()> {
         // TODO: Create seperate routers for each groupset for example: auth
         .route("/api/v1/auth/signup", post(signup))
         .route("/api/v1/auth/email-verification", post(email_verification))
+        .route(
+            "/api/v1/auth/password-reset-request",
+            post(password_reset_request),
+        )
         .layer(Extension(database_layer))
         .layer(Extension(email_layer))
         .with_state(shared_state);
