@@ -5,7 +5,7 @@ use validator::Validate;
 
 use crate::{
     errors::auth::email_verification::{self, EmailVerificationError},
-    services::database_service::DatabaseLayer,
+    services::database::DatabaseLayer,
     utils::validation::{
         validate_email_verification_code_format, validate_email_verification_code_length,
     },
@@ -72,6 +72,7 @@ pub async fn email_verification(
     }
 
     // TODO: 5. remove unauthorized session
+    // TODO: 6. Send email to user confirming the account verification
 
     Ok((
         StatusCode::OK,

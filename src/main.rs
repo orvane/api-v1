@@ -6,7 +6,7 @@ mod utils;
 use axum::{routing::post, Extension, Router};
 use dotenv::dotenv;
 use routes::auth::{email_verification::email_verification, signup::signup};
-use services::{database_service::DatabaseLayer, email_service::EmailLayer};
+use services::{database::DatabaseLayer, email::EmailLayer};
 use std::env;
 
 #[derive(Clone)]

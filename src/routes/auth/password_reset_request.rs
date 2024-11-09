@@ -5,7 +5,7 @@ use validator::Validate;
 
 use crate::{
     errors::auth::password_reset_request::PasswordResetRequestError,
-    services::database_service::DatabaseLayer,
+    services::database::DatabaseLayer,
 };
 
 #[derive(Debug, Deserialize, Validate)]
@@ -31,11 +31,11 @@ pub async fn password_reset_request(
 
     // 2. Create password reset request in the database
 
-    let create_password_reset_request = database_layer
-        .query()
-        .password_reset
-        .create(String::from(payload.email))
-        .await;
+    // let create_password_reset_request = database_layer
+    //     .query()
+    //     .password_reset
+    //     .create(String::from(payload.email))
+    //     .await;
 
     match payload_instance.validate() {
         Ok(_) => println!("Validation passed succesfully."),

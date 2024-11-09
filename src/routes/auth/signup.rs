@@ -7,8 +7,8 @@ use validator::Validate;
 use crate::{
     errors::auth::signup::SignupError,
     services::{
-        database_service::{DatabaseLayer, User},
-        email_service::EmailLayer,
+        database::{user::User, DatabaseLayer},
+        email::EmailLayer,
     },
     utils::{
         crypto::{hash_password, string_hash},
