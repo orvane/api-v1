@@ -7,12 +7,12 @@ pub async fn hash_password(password: String) -> Result<String, argon2::password_
     let argon2 = Argon2::default();
     let salt = SaltString::generate(&mut OsRng);
 
-    let password_hash = argon2.hash_password(password.as_bytes(), salt.as_salt())?;
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)?;
 
     Ok(password_hash.to_string())
 }
 
-pub async fn verify_password(
+pub async fn verify_password_hash(
     password: String,
     hash: String,
 ) -> Result<bool, argon2::password_hash::Error> {
@@ -26,7 +26,7 @@ pub async fn verify_password(
     Ok(true)
 }
 
-pub fn string_hash(input: String) -> String {
+pub fn hash_string(input: String) -> String {
     let mut hasher = Sha256::new();
 
     hasher.update(input.as_bytes());
@@ -37,7 +37,7 @@ pub fn string_hash(input: String) -> String {
 }
 
 pub fn verify_string_hash(input: String, hash: String) -> bool {
-    let new_hash = string_hash(input);
+    let new_hash = hash_string(input);
 
     hash == new_hash
 }
