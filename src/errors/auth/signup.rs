@@ -46,8 +46,8 @@ impl SignupError {
             }
 
             // TODO: Make use of the internal surrealdb::Error message
-            SignupError::DatabaseError(_) => {
-                json!("An error occurred while accessing database")
+            SignupError::DatabaseError(e) => {
+                json!(e)
             }
             SignupError::HashingError(_) => {
                 json!("An error occured while hashing the password")

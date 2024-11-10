@@ -42,9 +42,7 @@ impl PasswordResetRequestError {
 
                 json!(field_errors)
             }
-            PasswordResetRequestError::DatabaseError(_) => {
-                json!("An error occured while accessing database")
-            }
+            PasswordResetRequestError::DatabaseError(e) => json!(e),
             PasswordResetRequestError::EmailServiceError(_) => {
                 json!("An error has occured while sending an email")
             }

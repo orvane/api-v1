@@ -44,8 +44,9 @@ impl EmailVerificationError {
             }
 
             // TODO: Make use of the internal surrealdb::Error message
-            EmailVerificationError::DatabaseError(_) => {
-                json!("An error occurred while accessing database")
+            // TODO: Normalize this error so it's not nested like: {Api: ""}
+            EmailVerificationError::DatabaseError(e) => {
+                json!(e)
             }
             EmailVerificationError::InvalidCodeError => {
                 json!("The provided code is invalid or has expired")
