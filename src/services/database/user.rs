@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
-use validator::Validate;
+use validator::{Validate, ValidateRequired};
 
 use crate::utils::crypto::generate_uuid;
 
@@ -58,13 +58,13 @@ impl<'a> UserQuery<'a> {
             WHERE email = $user_email
         "#;
 
-        let mut user: surrealdb::Response = self
+        let mut response: surrealdb::Response = self
             .db
             .query(query)
             .bind(("user_email", email.clone()))
             .await?;
 
-        let users: Vec<User> = user.take(0)?;
+        let users: Vec<Option<User>> = response.take(0)?;
 
         Ok(!users.is_empty())
     }
