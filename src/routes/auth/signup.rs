@@ -50,90 +50,51 @@ pub async fn signup(
     };
 
     payload_instance.validate()?;
+    println!("1. Validation passed successfully!");
 
-    println!("Validation passed successfully!");
+    // 2. Check if the email is available
 
     let check_if_exists = database_layer
         .query()
         .user
         .check_if_exists(payload.email.clone())
-        .await;
+        .await?;
 
-    match check_if_exists {
-        Ok(_) => println!("Email availability check completed successfully!"),
-        // TODO: Add a custom error in case the email is already taken
-        Err(e) => {
-            return Err(ApiError(SignupError::Common(
-                crate::errors::CommonError::Database(e),
-            )))
-        }
+    if check_if_exists {
+        return Err(ApiError(SignupError::EmailAlreadyExists));
     }
+    println!("2. Email availability check completed successfully!");
 
     // 3. Create a new user in the database
 
-    let password_hash = hash_password(payload.password.clone()).await;
+    let password_hash = hash_password(payload.password.clone()).await?;
+    println!("3. Password hashed successfully!");
 
-    let password_hash = match password_hash {
-        Ok(hash) => {
-            println!("Password hashed successfully!");
-            hash
-        }
-        Err(e) => {
-            return Err(ApiError(SignupError::Common(
-                crate::errors::CommonError::Hashing(e),
-            )))
-        }
-    };
-
-    let create_new_user = database_layer
+    database_layer
         .query()
         .user
         .create(payload.email.clone(), password_hash)
-        .await;
-
-    match create_new_user {
-        Ok(_) => println!("User created successfully!"),
-        Err(e) => {
-            return Err(ApiError(SignupError::Common(
-                crate::errors::CommonError::Database(e),
-            )))
-        }
-    }
+        .await?;
+    println!("4. User created successfully!");
 
     // 4. Create email verification in the database
 
     let verification_code = generate_random_code(6);
     let verification_code_hash = hash_string(verification_code.clone());
 
-    let create_new_email_verification = database_layer
+    database_layer
         .query()
         .email_verification
         .create(verification_code_hash, payload.email.clone())
-        .await;
-
-    match create_new_email_verification {
-        Ok(_) => println!("Email verification created successfully!"),
-        Err(e) => {
-            return Err(ApiError(SignupError::Common(
-                crate::errors::CommonError::Database(e),
-            )))
-        }
-    }
+        .await?;
+    println!("5. Email verification created successfully!");
 
     // 5. Send email verification email
 
-    let send_email_verification_email = email_layer
+    email_layer
         .send_email_verification(payload.email, verification_code)
-        .await;
-
-    match send_email_verification_email {
-        Ok(_) => println!("Email verification email sent successfully!"),
-        Err(e) => {
-            return Err(ApiError(SignupError::Common(
-                crate::errors::CommonError::Email(e),
-            )))
-        }
-    }
+        .await?;
+    println!("6. Email verification email sent successfully!");
 
     // TODO: Return an unauthorized cookie (the cookie is also going to be constructed in case a
     // user wants to verify an account on another device)
