@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
-    errors::auth::email_verification::{self, EmailVerificationError},
+    errors::{auth::EmailVerificationError, response::ApiError},
     services::database::DatabaseLayer,
     utils::validation::{
         validate_email_verification_code_format, validate_email_verification_code_length,
@@ -26,50 +26,38 @@ pub struct RouteOutput {
 }
 
 // TODO: Make the route work only if the session with user id was provided
-#[axum::debug_handler]
 pub async fn email_verification(
     Extension(database_layer): Extension<DatabaseLayer>,
     Json(payload): Json<RoutePayload>,
-) -> Result<(StatusCode, Json<RouteOutput>), EmailVerificationError> {
+) -> Result<(StatusCode, Json<RouteOutput>), ApiError<EmailVerificationError>> {
     // 1. Validate payload input
-    let payload_instace = RoutePayload {
+    let payload_instance = RoutePayload {
         code: payload.code.clone(),
         user_id: payload.user_id.clone(),
         email_verification_id: payload.email_verification_id.clone(),
     };
 
-    match payload_instace.validate() {
-        Ok(_) => println!("Validation passed successfully!"),
-        Err(e) => return Err(EmailVerificationError::ValidationError(e)),
-    }
+    payload_instance.validate()?;
+    println!("Validation passed successfully!");
 
     // TODO: 2. Validate unauthorized session
     // Compare it via the token in the url
 
     // 3. Update user verified status
-    let modify_user_verified_status = database_layer
+    database_layer
         .query()
         .user
-        .verify_user(String::from(payload.user_id))
-        .await;
-
-    match modify_user_verified_status {
-        Ok(_) => println!("User verified status updated successfully!"),
-        Err(e) => return Err(EmailVerificationError::DatabaseError(e)),
-    }
+        .verify_user(payload.user_id.clone())
+        .await?;
+    println!("User verified status updated successfully!");
 
     // 4. Remove email verification
-
-    let remove_email_verification = database_layer
+    database_layer
         .query()
         .email_verification
-        .remove(String::from(payload.email_verification_id))
-        .await;
-
-    match remove_email_verification {
-        Ok(_) => println!("Email verification removed successfully!"),
-        Err(e) => return Err(EmailVerificationError::DatabaseError(e)),
-    }
+        .remove(payload.email_verification_id.clone())
+        .await?;
+    println!("Email verification removed successfully!");
 
     // TODO: 5. remove unauthorized session
     // TODO: 6. Send email to user confirming the account verification

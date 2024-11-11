@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
-    errors::auth::signup::SignupError,
+    errors::{auth::SignupError, response::ApiError},
     services::{
         database::{user::User, DatabaseLayer},
         email::EmailLayer,
@@ -36,26 +36,22 @@ pub struct RouteOutput {
 // The whole process should be handled manually since even if the email doesn't get sent to the
 // user the user record should still stay in the database as the email-verification request can be
 // created at any time
-// TODO: Clean up match statements (remove matches on Result and Option when possible)
 #[axum::debug_handler]
 pub async fn signup(
     State(app_state): State<AppState>,
     Extension(database_layer): Extension<DatabaseLayer>,
     Extension(email_layer): Extension<EmailLayer>,
     Json(payload): Json<RoutePayload>,
-) -> Result<(StatusCode, Json<RouteOutput>), SignupError> {
+) -> Result<(StatusCode, Json<RouteOutput>), ApiError<SignupError>> {
     // 1. Validate payload input
     let payload_instance = RoutePayload {
         email: payload.email.clone(),
         password: payload.password.clone(),
     };
 
-    match payload_instance.validate() {
-        Ok(_) => println!("Validation passed successfully!"),
-        Err(e) => return Err(SignupError::ValidationError(e)),
-    }
+    payload_instance.validate()?;
 
-    // 2. Check if the email is available
+    println!("Validation passed successfully!");
 
     let check_if_exists = database_layer
         .query()
@@ -66,7 +62,11 @@ pub async fn signup(
     match check_if_exists {
         Ok(_) => println!("Email availability check completed successfully!"),
         // TODO: Add a custom error in case the email is already taken
-        Err(e) => return Err(SignupError::DatabaseError(e)),
+        Err(e) => {
+            return Err(ApiError(SignupError::Common(
+                crate::errors::CommonError::Database(e),
+            )))
+        }
     }
 
     // 3. Create a new user in the database
@@ -78,7 +78,11 @@ pub async fn signup(
             println!("Password hashed successfully!");
             hash
         }
-        Err(e) => return Err(SignupError::HashingError(e)),
+        Err(e) => {
+            return Err(ApiError(SignupError::Common(
+                crate::errors::CommonError::Hashing(e),
+            )))
+        }
     };
 
     let create_new_user = database_layer
@@ -89,7 +93,11 @@ pub async fn signup(
 
     match create_new_user {
         Ok(_) => println!("User created successfully!"),
-        Err(e) => return Err(SignupError::DatabaseError(e)),
+        Err(e) => {
+            return Err(ApiError(SignupError::Common(
+                crate::errors::CommonError::Database(e),
+            )))
+        }
     }
 
     // 4. Create email verification in the database
@@ -105,7 +113,11 @@ pub async fn signup(
 
     match create_new_email_verification {
         Ok(_) => println!("Email verification created successfully!"),
-        Err(e) => return Err(SignupError::DatabaseError(e)),
+        Err(e) => {
+            return Err(ApiError(SignupError::Common(
+                crate::errors::CommonError::Database(e),
+            )))
+        }
     }
 
     // 5. Send email verification email
@@ -116,9 +128,15 @@ pub async fn signup(
 
     match send_email_verification_email {
         Ok(_) => println!("Email verification email sent successfully!"),
-        Err(e) => return Err(SignupError::EmailServiceError(e)),
+        Err(e) => {
+            return Err(ApiError(SignupError::Common(
+                crate::errors::CommonError::Email(e),
+            )))
+        }
     }
 
+    // TODO: Return an unauthorized cookie (the cookie is also going to be constructed in case a
+    // user wants to verify an account on another device)
     Ok((
         StatusCode::OK,
         Json(RouteOutput {
