@@ -64,9 +64,9 @@ impl<'a> UserQuery<'a> {
             .bind(("user_email", email.clone()))
             .await?;
 
-        let users: Vec<Option<User>> = response.take(0)?;
+        let result: Vec<Option<User>> = response.take(0)?;
 
-        Ok(!users.is_empty())
+        Ok(!result.is_empty())
     }
 
     pub async fn verify_user(&self, user_id: String) -> Result<(), surrealdb::Error> {
