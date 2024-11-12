@@ -51,13 +51,13 @@ pub async fn signup(
 
     // 2. Check if the email is available
 
-    let check_if_exists = database_layer
+    let user_exists = database_layer
         .query()
         .user
         .check_if_exists(payload.email.clone())
         .await?;
 
-    if check_if_exists {
+    if user_exists {
         return Err(ApiError(SignupError::EmailAlreadyExists));
     }
     println!("2. Email availability check completed successfully!");

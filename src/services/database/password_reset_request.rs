@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 use validator::Validate;
 
-use crate::utils::crypto::generate_uuid;
-
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct PasswordResetRequest {
     #[validate(email)]
