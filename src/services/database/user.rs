@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use surrealdb::{engine::remote::ws::Client, Surreal};
-use validator::{Validate, ValidateRequired};
+use surrealdb::{engine::remote::ws::Client, sql::thing, Surreal};
+use validator::Validate;
 
 use crate::utils::crypto::generate_uuid;
 
@@ -9,17 +9,17 @@ pub struct User {
     #[validate(email)]
     pub email: String,
     //TODO: Add custom valdation for the password
-    pub password: String,
+    pub password_hash: String,
 
     #[serde(default)]
     pub email_verified: bool,
 }
 
 impl User {
-    pub fn new(email: String, password: String) -> Self {
+    pub fn new(email: String, password_hash: String) -> Self {
         User {
             email,
-            password,
+            password_hash,
             email_verified: false,
         }
     }
@@ -42,12 +42,48 @@ impl<'a> UserQuery<'a> {
         email: String,
         password_hash: String,
     ) -> Result<Option<User>, surrealdb::Error> {
+        let query = r#"
+            CREATE type::thing("user", $id) SET
+                email = $email,
+                email_verified = false,
+                password_hash = $password_hash
+        "#;
+
         let id = generate_uuid();
-        let new_user = User::new(String::from(email.clone()), password_hash);
 
-        let user: Option<User> = self.db.create(("user", id)).content(new_user).await?;
+        let mut response: surrealdb::Response = self
+            .db
+            .query(query)
+            .bind(("id", id))
+            .bind(("email", email.clone()))
+            .bind(("password_hash", password_hash.clone()))
+            .await?;
 
-        Ok(user)
+        let result: Option<User> = response.take(0)?;
+
+        Ok(result)
+    }
+
+    pub async fn get(&self, email: String) -> Result<User, surrealdb::Error> {
+        let query = r#"
+            SELECT * FROM user
+            WHERE email = $user_email
+        "#;
+
+        let mut response: surrealdb::Response = self
+            .db
+            .query(query)
+            .bind(("user_email", email.clone()))
+            .await?;
+
+        let mut result: Vec<Option<User>> = response.take(0)?;
+
+        match result.pop().flatten() {
+            Some(user) => Ok(user),
+            None => Err(surrealdb::Error::Api(surrealdb::error::Api::InvalidParams(
+                String::from("User with provided email couldn't be found"),
+            ))),
+        }
     }
 
     // TODO: Instead of using string referance use normal string and clone the input in the
