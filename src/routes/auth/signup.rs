@@ -6,15 +6,12 @@ use validator::Validate;
 
 use crate::{
     errors::{auth::SignupError, response::ApiError},
-    services::{
-        database::{user::User, DatabaseLayer},
-        email::EmailLayer,
-    },
+    services::{database::DatabaseLayer, email::EmailLayer},
+    setup::AppState,
     utils::{
         crypto::{hash_password, hash_string},
         random::generate_random_code,
     },
-    AppState,
 };
 
 #[derive(Debug, Deserialize, Validate)]
