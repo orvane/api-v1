@@ -19,11 +19,10 @@ pub async fn verify_password_hash(
     let argon2 = Argon2::default();
     let hash = PasswordHash::new(hash.as_str()).unwrap();
 
-    let password_verifies = argon2.verify_password(password.as_bytes(), &hash);
-
-    println!("{:?}", password_verifies);
-
-    Ok(true)
+    match argon2.verify_password(password.as_bytes(), &hash) {
+        Ok(_) => Ok(true),
+        Err(e) => Err(e),
+    }
 }
 
 pub fn hash_string(input: String) -> String {
