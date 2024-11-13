@@ -66,7 +66,7 @@ impl<'a> EmailVerificationQuery<'a> {
                 id = $id,
                 email = $email,
                 code = $code,
-                created_ay = time::now()
+                created_at = time::now()
         "#;
 
         let mut result = self
