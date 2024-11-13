@@ -116,6 +116,8 @@ dependencies = [
  "argon2",
  "axum",
  "axum-extra",
+ "chrono",
+ "data-encoding",
  "derive_more",
  "dotenv",
  "futures-util",
