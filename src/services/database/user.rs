@@ -1,11 +1,17 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use surrealdb::{engine::remote::ws::Client, sql::thing, Surreal};
+use surrealdb::{
+    engine::remote::ws::Client,
+    sql::{thing, Datetime, Thing},
+    Surreal,
+};
 use validator::Validate;
 
 use crate::utils::crypto::generate_uuid;
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct User {
+    pub id: Thing,
     #[validate(email)]
     pub email: String,
     //TODO: Add custom valdation for the password
@@ -13,14 +19,17 @@ pub struct User {
 
     #[serde(default)]
     pub email_verified: bool,
+    created_at: Thing,
 }
 
 impl User {
-    pub fn new(email: String, password_hash: String) -> Self {
+    pub fn new(id: Thing, email: String, password_hash: String, created_at: Thing) -> Self {
         User {
+            id,
             email,
             password_hash,
             email_verified: false,
+            created_at,
         }
     }
 }
@@ -42,11 +51,14 @@ impl<'a> UserQuery<'a> {
         email: String,
         password_hash: String,
     ) -> Result<Option<User>, surrealdb::Error> {
+        let created_at = Datetime::from(Utc::now());
+
         let query = r#"
             CREATE type::thing("user", $id) SET
                 email = $email,
                 email_verified = false,
-                password_hash = $password_hash
+                password_hash = $password_hash,
+                create_at = $created_at
         "#;
 
         let id = generate_uuid();
@@ -57,6 +69,7 @@ impl<'a> UserQuery<'a> {
             .bind(("id", id))
             .bind(("email", email.clone()))
             .bind(("password_hash", password_hash.clone()))
+            .bind(("created_at", created_at.clone()))
             .await?;
 
         let result: Option<User> = response.take(0)?;
