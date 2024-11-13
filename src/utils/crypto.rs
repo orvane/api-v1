@@ -1,5 +1,6 @@
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use rand::rngs::OsRng;
+use data_encoding::BASE32_NOPAD;
+use rand::{rngs::OsRng, RngCore};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -45,4 +46,12 @@ pub fn generate_uuid() -> String {
     let new_uuid = Uuid::new_v4().simple().to_string();
 
     new_uuid
+}
+
+pub fn generate_session_token() -> String {
+    let mut bytes = [0u8; 20];
+
+    rand::thread_rng().fill_bytes(&mut bytes);
+
+    BASE32_NOPAD.encode(&bytes).to_lowercase()
 }
