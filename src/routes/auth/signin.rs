@@ -62,6 +62,10 @@ pub async fn signin(
     println!("3. Password confirmed successfully!");
 
     // 4. Create a session in database
+
+    let session = database_layer.query().session.create(user.id).await?;
+    println!("4. Session created successfully!");
+
     // 5. Create a session cookie
 
     Ok((
