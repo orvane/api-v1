@@ -1,5 +1,6 @@
 pub mod email_verification;
 pub mod password_reset_request;
+pub mod session;
 pub mod user;
 
 use std::task::{Context, Poll};
@@ -20,6 +21,7 @@ pub struct DatabaseQuery<'a> {
     pub user: user::UserQuery<'a>,
     pub email_verification: email_verification::EmailVerificationQuery<'a>,
     pub password_reset_request: password_reset_request::PasswordResetRequestQuery<'a>,
+    pub session: session::SessionQuery<'a>,
 }
 
 #[allow(dead_code)]
@@ -71,6 +73,7 @@ impl DatabaseLayer {
             password_reset_request: password_reset_request::PasswordResetRequestQuery::new(
                 &self.db,
             ),
+            session: session::SessionQuery::new(&self.db),
         }
     }
 }
