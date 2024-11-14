@@ -8,16 +8,21 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::utils::crypto::{generate_session_token, generate_uuid};
+use crate::utils::crypto::{generate_token, generate_uuid, hash_token};
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct Session {
     id: Thing,
     #[serde(rename = "user")]
     user_id: Thing,
-    created_at: Datetime,
-    expires_at: Datetime,
     authorized: bool,
+
+    #[serde(default)]
+    created_at: Datetime,
+    #[serde(default)]
+    expires_at: Datetime,
+    #[serde(default)]
+    last_accessed_at: Datetime,
 }
 
 #[derive(Clone)]
@@ -37,9 +42,9 @@ impl<'a> SessionQuery<'a> {
         user_id: Thing,
         authorized: bool,
     ) -> Result<Session, surrealdb::Error> {
-        let token = generate_session_token();
+        let token = generate_token();
 
-        let session_id_str = self.hash_token(&token);
+        let session_id_str = hash_token(&token);
         let session_id = Thing::from(("session".to_string(), session_id_str.clone()));
 
         let now: DateTime<Utc> = Utc::now();
@@ -49,11 +54,18 @@ impl<'a> SessionQuery<'a> {
         let expires_at = Datetime::from(expires);
 
         let query = r#"
+            BEGIN TRANSACTION;
+
+           
             CREATE type::thing("session", $id) SET
                 user = $user_id,
                 created_at = $created_at,
                 expires_at = $expires_at,
-                authorized = $authorized
+                authorized = $authorized;
+
+            RELATE $user_id -> session -> $id;
+
+            COMMIT TRANSACTION;
         "#;
 
         self.db
@@ -68,9 +80,34 @@ impl<'a> SessionQuery<'a> {
         Ok(Session {
             id: session_id,
             user_id,
-            created_at,
+            created_at: created_at.clone(),
             expires_at,
             authorized,
+            last_accessed_at: created_at,
         })
+    }
+
+    pub async fn invalidate_all(&self, user_id: Thing) -> Result<(), surrealdb::Error> {
+        let query = r#"
+            DELETE session 
+            WHERE user = $id
+            RETURN BEFORE;
+        "#;
+
+        let mut response: surrealdb::Response =
+            self.db.query(query).bind(("id", user_id.clone())).await?;
+
+        let result: Vec<Session> = response.take(0)?;
+
+        // Check if the deletion affected any rows (result should be empty if nothing was deleted)
+        if result.is_empty() {
+            return Err(surrealdb::Error::Api(
+                surrealdb::error::Api::InvalidRequest(String::from(
+                    "No session found for the specified user, or the user does not exist.",
+                )),
+            ));
+        }
+
+        Ok(())
     }
 }
