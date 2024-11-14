@@ -32,13 +32,6 @@ impl<'a> SessionQuery<'a> {
 }
 
 impl<'a> SessionQuery<'a> {
-    fn hash_token(&self, token: &str) -> String {
-        let mut hasher = Sha256::new();
-
-        hasher.update(token);
-        hex::encode(hasher.finalize())
-    }
-
     pub async fn create(
         &self,
         user_id: Thing,

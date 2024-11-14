@@ -48,10 +48,17 @@ pub fn generate_uuid() -> String {
     new_uuid
 }
 
-pub fn generate_session_token() -> String {
+pub fn generate_token() -> String {
     let mut bytes = [0u8; 20];
 
     rand::thread_rng().fill_bytes(&mut bytes);
 
     BASE32_NOPAD.encode(&bytes).to_lowercase()
+}
+
+pub fn hash_token(token: &str) -> String {
+    let mut hasher = Sha256::new();
+
+    hasher.update(token);
+    hex::encode(hasher.finalize())
 }
