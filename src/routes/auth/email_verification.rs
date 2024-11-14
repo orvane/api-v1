@@ -1,6 +1,7 @@
 use axum::{Extension, Json};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
+use surrealdb::sql::Thing;
 use validator::Validate;
 
 use crate::{
@@ -38,28 +39,41 @@ pub async fn email_verification(
     };
 
     payload_instance.validate()?;
-    println!("Validation passed successfully!");
+    println!("1. Validation passed successfully!");
 
     // TODO: 2. Validate unauthorized session
     // Compare it via the token in the url
+
+    let user_id = Thing::from((String::from("user"), payload.user_id));
+    let email_verification_id = Thing::from((
+        String::from("email_verification"),
+        payload.email_verification_id,
+    ));
 
     // 3. Update user verified status
     database_layer
         .query()
         .user
-        .verify_user(payload.user_id.clone())
+        .verify_user(user_id.clone())
         .await?;
-    println!("User verified status updated successfully!");
+    println!("2. User verified status updated successfully!");
 
     // 4. Remove email verification
     database_layer
         .query()
         .email_verification
-        .remove(payload.email_verification_id.clone())
+        .remove(email_verification_id.clone())
         .await?;
-    println!("Email verification removed successfully!");
+    println!("3. Email verification removed successfully!");
 
-    // TODO: 5. remove unauthorized session
+    // TODO: 5. Remove all user sessions (should only have unauthrized ones)
+
+    database_layer
+        .query()
+        .session
+        .invalidate_all(user_id)
+        .await?;
+
     // TODO: 6. Send email to user confirming the account verification
 
     Ok((
