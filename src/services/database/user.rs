@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
     engine::remote::ws::Client,
-    sql::{thing, Datetime, Thing},
+    sql::{Datetime, Thing},
     Surreal,
 };
 use validator::Validate;
@@ -19,11 +19,12 @@ pub struct User {
 
     #[serde(default)]
     pub email_verified: bool,
-    created_at: Thing,
+    #[serde(default)]
+    pub created_at: Datetime,
 }
 
 impl User {
-    pub fn new(id: Thing, email: String, password_hash: String, created_at: Thing) -> Self {
+    pub fn new(id: Thing, email: String, password_hash: String, created_at: Datetime) -> Self {
         User {
             id,
             email,
@@ -58,7 +59,7 @@ impl<'a> UserQuery<'a> {
                 email = $email,
                 email_verified = false,
                 password_hash = $password_hash,
-                create_at = $created_at
+                created_at = $created_at
         "#;
 
         let id = generate_uuid();
