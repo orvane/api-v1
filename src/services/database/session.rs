@@ -17,6 +17,7 @@ pub struct Session {
     user_id: Thing,
     created_at: Datetime,
     expires_at: Datetime,
+    authorized: bool,
 }
 
 #[derive(Clone)]
@@ -38,7 +39,11 @@ impl<'a> SessionQuery<'a> {
         hex::encode(hasher.finalize())
     }
 
-    pub async fn create(&self, user_id: Thing) -> Result<Session, surrealdb::Error> {
+    pub async fn create(
+        &self,
+        user_id: Thing,
+        authorized: bool,
+    ) -> Result<Session, surrealdb::Error> {
         let token = generate_session_token();
 
         let session_id_str = self.hash_token(&token);
@@ -54,7 +59,8 @@ impl<'a> SessionQuery<'a> {
             CREATE type::thing("session", $id) SET
                 user = $user_id,
                 created_at = $created_at,
-                expires_at = $expires_at
+                expires_at = $expires_at,
+                authorized = $authorized
         "#;
 
         self.db
@@ -63,6 +69,7 @@ impl<'a> SessionQuery<'a> {
             .bind(("user_id", user_id.clone()))
             .bind(("created_at", created_at.clone()))
             .bind(("expires_at", expires_at.clone()))
+            .bind(("authorized", authorized.clone()))
             .await?;
 
         Ok(Session {
@@ -70,6 +77,7 @@ impl<'a> SessionQuery<'a> {
             user_id,
             created_at,
             expires_at,
+            authorized,
         })
     }
 }
