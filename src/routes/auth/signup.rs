@@ -67,7 +67,7 @@ pub async fn signup(
     let password_hash = hash_password(payload.password.clone()).await?;
     println!("3. Password hashed successfully!");
 
-    database_layer
+    let user = database_layer
         .query()
         .user
         .create(payload.email.clone(), password_hash)
@@ -82,7 +82,11 @@ pub async fn signup(
     database_layer
         .query()
         .email_verification
-        .create(verification_code_hash, payload.email.clone())
+        .create(
+            verification_code_hash,
+            payload.email.clone(),
+            user.id.clone(),
+        )
         .await?;
     println!("5. Email verification created successfully!");
 
@@ -92,6 +96,15 @@ pub async fn signup(
         .send_email_verification(payload.email, verification_code)
         .await?;
     println!("6. Email verification email sent successfully!");
+
+    // 6. Create unauthorized session in the database
+
+    let session = database_layer
+        .query()
+        .session
+        .create(user.id, false)
+        .await?;
+    println!("7. Unauthorized session created successfully!");
 
     // TODO: Return an unauthorized cookie (the cookie is also going to be constructed in case a
     // user wants to verify an account on another device)
