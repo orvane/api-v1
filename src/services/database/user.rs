@@ -7,7 +7,7 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::utils::crypto::generate_uuid;
+use crate::utils::crypto::{generate_token, generate_uuid};
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct User {
@@ -51,7 +51,10 @@ impl<'a> UserQuery<'a> {
         &self,
         email: String,
         password_hash: String,
-    ) -> Result<Option<User>, surrealdb::Error> {
+    ) -> Result<User, surrealdb::Error> {
+        let user_id_str = generate_token();
+        let user_id = Thing::from(("user".to_string(), user_id_str.clone()));
+
         let created_at = Datetime::from(Utc::now());
 
         let query = r#"
@@ -62,20 +65,15 @@ impl<'a> UserQuery<'a> {
                 created_at = $created_at
         "#;
 
-        let id = generate_uuid();
-
-        let mut response: surrealdb::Response = self
-            .db
+        self.db
             .query(query)
-            .bind(("id", id))
+            .bind(("id", user_id.clone()))
             .bind(("email", email.clone()))
             .bind(("password_hash", password_hash.clone()))
             .bind(("created_at", created_at.clone()))
             .await?;
 
-        let result: Option<User> = response.take(0)?;
-
-        Ok(result)
+        Ok(User::new(user_id, email, password_hash, created_at))
     }
 
     pub async fn get(&self, email: String) -> Result<User, surrealdb::Error> {
@@ -119,19 +117,19 @@ impl<'a> UserQuery<'a> {
         Ok(!result.is_empty())
     }
 
-    pub async fn verify_user(&self, user_id: String) -> Result<(), surrealdb::Error> {
+    pub async fn verify_user(&self, user_id: Thing) -> Result<(), surrealdb::Error> {
         let query = r#"
             UPDATE user
             SET email_verified = true
             WHERE id = $user_id
         "#;
 
-        let mut result: surrealdb::Response =
+        let mut response: surrealdb::Response =
             self.db.query(query).bind(("user_id", user_id)).await?;
 
-        let affected: Vec<User> = result.take(0)?;
+        let result: Vec<User> = response.take(0)?;
 
-        if affected.is_empty() {
+        if result.is_empty() {
             return Err(surrealdb::Error::Api(
                 surrealdb::error::Api::InvalidRequest(String::from(
                     "User either doesn't exist or is already verified",
