@@ -34,6 +34,23 @@ impl EmailLayer {
         Ok(())
     }
 
+    pub async fn send_email_verification_confirmation(
+        &self,
+        to: String,
+    ) -> Result<(), resend_rs::Error> {
+        let resend = Resend::new(&self.api_key);
+
+        let from = format!("Orvane <noreply@{}>", &self.domain);
+        let to = [to];
+        let subject = "Orvane - Email verified successfully";
+
+        let email = CreateEmailBaseOptions::new(from, to, subject).with_html("Email verified!");
+
+        let _email = resend.emails.send(email).await?;
+
+        Ok(())
+    }
+
     pub async fn send_password_reset(
         &self,
         to: String,
