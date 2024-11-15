@@ -6,7 +6,10 @@ use validator::Validate;
 
 use crate::{
     errors::{auth::EmailVerificationError, response::ApiError},
-    services::database::DatabaseLayer,
+    services::{
+        database::DatabaseLayer,
+        email::{self, EmailLayer},
+    },
     utils::validation::{
         validate_email_verification_code_format, validate_email_verification_code_length,
     },
@@ -29,6 +32,7 @@ pub struct RouteOutput {
 // TODO: Make the route work only if the session with user id was provided
 pub async fn email_verification(
     Extension(database_layer): Extension<DatabaseLayer>,
+    Extension(email_layer): Extension<EmailLayer>,
     Json(payload): Json<RoutePayload>,
 ) -> Result<(StatusCode, Json<RouteOutput>), ApiError<EmailVerificationError>> {
     // 1. Validate payload input
@@ -51,7 +55,7 @@ pub async fn email_verification(
     ));
 
     // 3. Update user verified status
-    database_layer
+    let user = database_layer
         .query()
         .user
         .verify_user(user_id.clone())
@@ -75,6 +79,10 @@ pub async fn email_verification(
         .await?;
 
     // TODO: 6. Send email to user confirming the account verification
+
+    email_layer
+        .send_email_verification_confirmation(user.first().unwrap().email.clone())
+        .await?;
 
     Ok((
         StatusCode::OK,
