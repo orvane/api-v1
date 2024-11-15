@@ -1,6 +1,10 @@
-use axum::{extract::State, Extension, Json};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    Extension, Json,
+};
 
-use hyper::StatusCode;
+use hyper::{header::SET_COOKIE, StatusCode};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -9,6 +13,7 @@ use crate::{
     services::{database::DatabaseLayer, email::EmailLayer},
     setup::AppState,
     utils::{
+        cookies::set_session_cookie,
         crypto::{hash_password, hash_string},
         random::generate_random_code,
     },
@@ -39,7 +44,8 @@ pub async fn signup(
     Extension(database_layer): Extension<DatabaseLayer>,
     Extension(email_layer): Extension<EmailLayer>,
     Json(payload): Json<RoutePayload>,
-) -> Result<(StatusCode, Json<RouteOutput>), ApiError<SignupError>> {
+    // TODO: Add a custom SignupResponse type so it includes Json<RouteOutput> and the cookie, etc.
+) -> Result<(StatusCode, Response), ApiError<SignupError>> {
     // 1. Validate payload input
     let payload_instance = RoutePayload {
         email: payload.email.clone(),
@@ -108,10 +114,21 @@ pub async fn signup(
 
     // TODO: Return an unauthorized cookie (the cookie is also going to be constructed in case a
     // user wants to verify an account on another device)
-    Ok((
+
+    let cookie = set_session_cookie(session.id.clone().id.to_string(), false);
+    println!("Unauthorized session cookie created successfully!");
+
+    let mut response = (
         StatusCode::OK,
         Json(RouteOutput {
             message: String::from("Signup completed successfully!"),
         }),
-    ))
+    )
+        .into_response();
+
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+
+    Ok((StatusCode::OK, response))
 }

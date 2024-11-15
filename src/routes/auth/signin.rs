@@ -1,12 +1,15 @@
-use axum::{Extension, Json};
-use hyper::StatusCode;
+use axum::{
+    response::{IntoResponse, Response},
+    Extension, Json,
+};
+use hyper::{header::SET_COOKIE, StatusCode};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
     errors::{auth::SigninError, response::ApiError},
     services::database::DatabaseLayer,
-    utils::crypto::verify_password_hash,
+    utils::{cookies::set_session_cookie, crypto::verify_password_hash},
 };
 
 #[derive(Debug, Deserialize, Validate)]
@@ -26,7 +29,8 @@ pub struct RouteOutput {
 pub async fn signin(
     Extension(database_layer): Extension<DatabaseLayer>,
     Json(payload): Json<RoutePayload>,
-) -> Result<(StatusCode, Json<RouteOutput>), ApiError<SigninError>> {
+    // TODO: Same stuff with the Response type as signup
+) -> Result<(StatusCode, Response), ApiError<SigninError>> {
     // 1. Validate payload input
     let payload_instance = RoutePayload {
         email: payload.email.clone(),
@@ -68,10 +72,20 @@ pub async fn signin(
 
     // 5. Create a session cookie
 
-    Ok((
+    let cookie = set_session_cookie(session.id.clone().id.to_string(), true);
+    println!("Session cookie created successfully!");
+
+    let mut response = (
         StatusCode::OK,
         Json(RouteOutput {
             message: String::from("Signin completed successfully!"),
         }),
-    ))
+    )
+        .into_response();
+
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+
+    Ok((StatusCode::OK, response))
 }
