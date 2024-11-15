@@ -117,7 +117,7 @@ impl<'a> UserQuery<'a> {
         Ok(!result.is_empty())
     }
 
-    pub async fn verify_user(&self, user_id: Thing) -> Result<(), surrealdb::Error> {
+    pub async fn verify_user(&self, user_id: Thing) -> Result<Vec<User>, surrealdb::Error> {
         let query = r#"
             UPDATE user
             SET email_verified = true
@@ -137,6 +137,6 @@ impl<'a> UserQuery<'a> {
             ));
         }
 
-        Ok(())
+        Ok(result)
     }
 }
