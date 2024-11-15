@@ -1,6 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use surrealdb::{
     engine::remote::ws::Client,
     sql::{Datetime, Thing},
@@ -8,21 +7,21 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::utils::crypto::{generate_token, generate_uuid, hash_token};
+use crate::utils::crypto::{generate_token, hash_token};
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct Session {
-    id: Thing,
+    pub id: Thing,
     #[serde(rename = "user")]
-    user_id: Thing,
-    authorized: bool,
+    pub user_id: Thing,
+    pub authorized: bool,
 
     #[serde(default)]
-    created_at: Datetime,
+    pub created_at: Datetime,
     #[serde(default)]
-    expires_at: Datetime,
+    pub expires_at: Datetime,
     #[serde(default)]
-    last_accessed_at: Datetime,
+    pub last_accessed_at: Datetime,
 }
 
 #[derive(Clone)]

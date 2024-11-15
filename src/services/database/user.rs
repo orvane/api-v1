@@ -7,7 +7,7 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::utils::crypto::{generate_token, generate_uuid};
+use crate::utils::crypto::generate_token;
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct User {
