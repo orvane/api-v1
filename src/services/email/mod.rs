@@ -19,6 +19,7 @@ impl EmailLayer {
         &self,
         to: String,
         activation_code: String,
+        token_hash: String,
     ) -> Result<(), resend_rs::Error> {
         let resend = Resend::new(&self.api_key);
 
@@ -26,8 +27,16 @@ impl EmailLayer {
         let to = [to];
         let subject = "Orvane - Account Activation";
 
-        let email = CreateEmailBaseOptions::new(from, to, subject)
-            .with_html(format!("<strong>{}</strong>", activation_code).as_str());
+        let email = CreateEmailBaseOptions::new(from, to, subject).with_html(
+            format!(
+                "
+                <strong>{}</strong>
+                <span>{}</span>
+            ",
+                activation_code, token_hash
+            )
+            .as_str(),
+        );
 
         let _email = resend.emails.send(email).await?;
 
