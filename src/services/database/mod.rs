@@ -65,6 +65,14 @@ impl DatabaseLayer {
         })
     }
 
+    pub async fn initialize_schemas(&self, schemas: Vec<&str>) -> Result<(), surrealdb::Error> {
+        for schema_query in schemas {
+            self.db.query(schema_query).await?;
+        }
+
+        Ok(())
+    }
+
     pub fn query(&self) -> DatabaseQuery {
         DatabaseQuery {
             db: &self.db,
