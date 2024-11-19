@@ -10,8 +10,11 @@ use crate::{
         database::DatabaseLayer,
         email::{self, EmailLayer},
     },
-    utils::validation::{
-        validate_email_verification_code_format, validate_email_verification_code_length,
+    utils::{
+        crypto::{hash_string, verify_string_hash},
+        validation::{
+            validate_email_verification_code_format, validate_email_verification_code_length,
+        },
     },
 };
 
@@ -21,7 +24,7 @@ pub struct RoutePayload {
     #[validate(custom(function = "validate_email_verification_code_format"))]
     code: String,
     user_id: String,
-    email_verification_id: String,
+    email_verification_id_hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,19 +42,37 @@ pub async fn email_verification(
     let payload_instance = RoutePayload {
         code: payload.code.clone(),
         user_id: payload.user_id.clone(),
-        email_verification_id: payload.email_verification_id.clone(),
+        email_verification_id_hash: payload.email_verification_id_hash.clone(),
     };
 
     payload_instance.validate()?;
     println!("1. Validation passed successfully!");
 
-    // TODO: 2. Validate unauthorized session
-    // Compare it via the token in the url
+    // 2. Check if email verification exists for a user
 
-    let user_id = Thing::from((String::from("user"), payload.user_id));
+    let user_id = Thing::from((String::from("user"), payload.user_id.clone()));
+
+    let email_verification_response = database_layer
+        .query()
+        .email_verification
+        .get(user_id.clone())
+        .await?;
+    println!("2. Email verification existence checked successfully!");
+
+    // 3. Validate unauthorized session
+
+    let email_verification_id_matches = verify_string_hash(
+        email_verification_response.id.id.to_string(),
+        payload.email_verification_id_hash.clone(),
+    );
+
+    if !email_verification_id_matches {
+        return Err(ApiError(EmailVerificationError::InvalidToken));
+    }
+
     let email_verification_id = Thing::from((
         String::from("email_verification"),
-        payload.email_verification_id,
+        email_verification_response.id.id.to_string(),
     ));
 
     // 3. Update user verified status
@@ -70,7 +91,7 @@ pub async fn email_verification(
         .await?;
     println!("3. Email verification removed successfully!");
 
-    // TODO: 5. Remove all user sessions (should only have unauthrized ones)
+    // 5. Remove all user sessions (should only have unauthrized ones)
 
     database_layer
         .query()
@@ -78,7 +99,7 @@ pub async fn email_verification(
         .invalidate_all(user_id)
         .await?;
 
-    // TODO: 6. Send email to user confirming the account verification
+    // 6. Send email to user confirming the account verification
 
     email_layer
         .send_email_verification_confirmation(user.first().unwrap().email.clone())
