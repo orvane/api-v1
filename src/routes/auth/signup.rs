@@ -85,7 +85,7 @@ pub async fn signup(
     let verification_code = generate_random_code(6);
     let verification_code_hash = hash_string(verification_code.clone());
 
-    database_layer
+    let email_verification = database_layer
         .query()
         .email_verification
         .create(
@@ -98,8 +98,10 @@ pub async fn signup(
 
     // 5. Send email verification email
 
+    let token_hash = hash_string(email_verification.id.id.clone().to_string());
+
     email_layer
-        .send_email_verification(payload.email, verification_code)
+        .send_email_verification(payload.email, verification_code, token_hash)
         .await?;
     println!("6. Email verification email sent successfully!");
 
@@ -112,11 +114,10 @@ pub async fn signup(
         .await?;
     println!("7. Unauthorized session created successfully!");
 
-    // TODO: Return an unauthorized cookie (the cookie is also going to be constructed in case a
-    // user wants to verify an account on another device)
+    // 7. Create a session cookie and add it to response
 
     let cookie = set_session_cookie(session.id.clone().id.to_string(), false);
-    println!("Unauthorized session cookie created successfully!");
+    println!("8. Unauthorized session cookie created successfully!");
 
     let mut response = (
         StatusCode::OK,
