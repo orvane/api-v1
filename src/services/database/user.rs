@@ -65,7 +65,8 @@ impl<'a> UserQuery<'a> {
                 created_at = $created_at
         "#;
 
-        self.db
+        let mut response: surrealdb::Response = self
+            .db
             .query(query)
             .bind(("id", user_id.clone()))
             .bind(("email", email.clone()))
@@ -73,7 +74,14 @@ impl<'a> UserQuery<'a> {
             .bind(("created_at", created_at.clone()))
             .await?;
 
-        Ok(User::new(user_id, email, password_hash, created_at))
+        let created: Option<User> = response.take(0)?;
+
+        match created {
+            Some(user) => Ok(user),
+            None => Err(surrealdb::Error::Api(
+                surrealdb::error::Api::InvalidRequest("Failed to create user".to_string()),
+            )),
+        }
     }
 
     pub async fn get(&self, email: String) -> Result<User, surrealdb::Error> {

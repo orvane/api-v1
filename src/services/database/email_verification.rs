@@ -7,34 +7,36 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::utils::crypto::generate_token;
+use crate::{routes::auth::email_verification, utils::crypto::generate_token};
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct EmailVerification {
     pub id: Thing,
     pub code: String,
-    pub email: String,
 
     #[serde(default)]
     pub created_at: Datetime,
     #[serde(default)]
     expires_at: Datetime,
+
+    #[serde(rename = "user")]
+    user: Thing,
 }
 
 impl EmailVerification {
     pub fn new(
         id: Thing,
-        email: String,
         code: String,
         created_at: Datetime,
         expires_at: Datetime,
+        user_id: Thing,
     ) -> Self {
         EmailVerification {
             id,
-            email,
             code,
             created_at,
             expires_at,
+            user: user_id,
         }
     }
 }
@@ -52,6 +54,7 @@ impl<'a> EmailVerificationQuery<'a> {
 
 impl<'a> EmailVerificationQuery<'a> {
     // TODO: This function needs better error exception handling, take a look at it in free time
+    // TODO: Check if providing email is necessary since we already provide user_id
     pub async fn create(
         &self,
         code: String,
@@ -96,37 +99,54 @@ impl<'a> EmailVerificationQuery<'a> {
         }
 
         let create_query = r#"
-            BEGIN TRANSACTION;
-
-            CREATE type::thing("email_verification", $id) SET
-                id = $id,
-                email = $email,
-                code = $code,
-                created_at = $created_at,
-                expires_at = $expires_at;
-
-            RELATE $user_id -> email_verification -> $id;
-
-            COMMIT TRANSACTION;
+            CREATE email_verification CONTENT {
+                id: $id,
+                code: $code,
+                created_at: $created_at,
+                expires_at: $expires_at,
+                user: $user_id
+            };
         "#;
 
-        self.db
+        let mut response: surrealdb::Response = self
+            .db
             .query(create_query)
             .bind(("id", email_verification_id.clone()))
-            .bind(("email", email.clone()))
             .bind(("code", code.clone()))
-            .bind(("user_id", user_id.clone()))
             .bind(("expires_at", expires_at.clone()))
             .bind(("created_at", created_at.clone()))
+            .bind(("user_id", user_id.clone()))
             .await?;
 
-        Ok(EmailVerification::new(
-            email_verification_id,
-            email,
-            code,
-            created_at,
-            expires_at,
-        ))
+        let created: Option<EmailVerification> = response.take(0)?;
+
+        match created {
+            Some(email_verification) => Ok(email_verification),
+            None => Err(surrealdb::Error::Api(
+                surrealdb::error::Api::InvalidRequest(
+                    "Failed to create email verification".to_string(),
+                ),
+            )),
+        }
+    }
+
+    pub async fn get(&self, user_id: Thing) -> Result<EmailVerification, surrealdb::Error> {
+        let query = r#"
+            SELECT * FROM email_verification
+            WHERE user.id = $id
+        "#;
+
+        let mut response: surrealdb::Response =
+            self.db.query(query).bind(("id", user_id.clone())).await?;
+
+        let mut result: Vec<Option<EmailVerification>> = response.take(0)?;
+
+        match result.pop().flatten() {
+            Some(user) => Ok(user),
+            None => Err(surrealdb::Error::Api(surrealdb::error::Api::InvalidParams(
+                String::from("User with provided email couldn't be found"),
+            ))),
+        }
     }
 
     pub async fn remove(&self, email_verification_id: Thing) -> Result<(), surrealdb::Error> {
