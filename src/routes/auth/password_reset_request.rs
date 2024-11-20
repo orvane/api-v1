@@ -35,19 +35,25 @@ pub async fn password_reset_request(
     println!("Validation passed successfully.");
 
     // 2. Create password reset request in the database
-    let id = generate_uuid();
-    let id_hash = hash_string(id.clone());
 
-    database_layer
+    let user = database_layer
+        .query()
+        .user
+        .get(payload.email.clone())
+        .await?;
+
+    let password_reset_request = database_layer
         .query()
         .password_reset_request
-        .create(id_hash.clone(), payload.email.clone())
+        .create(user.id.clone())
         .await?;
+
+    let id_hash = hash_string(password_reset_request.id.id.to_string().clone());
     println!("Password reset request creation completed successfully.");
 
     // 3. Send an email with the details on how to reset the password
     email_layer
-        .send_password_reset(payload.email.clone(), id.clone())
+        .send_password_reset(payload.email, id_hash)
         .await?;
     println!("Password reset email sent successfully!");
 
