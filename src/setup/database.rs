@@ -1,6 +1,8 @@
 use crate::{
     services::database::DatabaseLayer,
-    utils::schemas::{EMAIL_VERIFICATION_SCHEMA, SESSION_SCHEMA, USER_SCHEMA},
+    utils::schemas::{
+        EMAIL_VERIFICATION_SCHEMA, PASSWORD_RESET_REQUEST_SCHEMA, SESSION_SCHEMA, USER_SCHEMA,
+    },
 };
 
 pub async fn setup_database() -> surrealdb::Result<DatabaseLayer> {
@@ -14,7 +16,12 @@ pub async fn setup_database() -> surrealdb::Result<DatabaseLayer> {
     .await?;
 
     db_layer
-        .initialize_schemas(vec![USER_SCHEMA, EMAIL_VERIFICATION_SCHEMA, SESSION_SCHEMA])
+        .initialize_schemas(vec![
+            USER_SCHEMA,
+            EMAIL_VERIFICATION_SCHEMA,
+            SESSION_SCHEMA,
+            PASSWORD_RESET_REQUEST_SCHEMA,
+        ])
         .await?;
 
     Ok(db_layer)
