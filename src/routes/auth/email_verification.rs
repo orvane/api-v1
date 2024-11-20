@@ -6,12 +6,9 @@ use validator::Validate;
 
 use crate::{
     errors::{auth::EmailVerificationError, response::ApiError},
-    services::{
-        database::DatabaseLayer,
-        email::{self, EmailLayer},
-    },
+    services::{database::DatabaseLayer, email::EmailLayer},
     utils::{
-        crypto::{hash_string, verify_string_hash},
+        crypto::verify_string_hash,
         validation::{
             validate_email_verification_code_format, validate_email_verification_code_length,
         },
