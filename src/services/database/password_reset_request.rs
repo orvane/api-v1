@@ -10,7 +10,7 @@ use surrealdb::{
 };
 use validator::Validate;
 
-use crate::{routes::auth::password_reset_request, utils::crypto::generate_token};
+use crate::utils::crypto::generate_token;
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub struct PasswordResetRequest {
